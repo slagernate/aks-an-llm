@@ -27,7 +27,7 @@ should print
 /home/$YOUR_USER_NAME/.local/bin/aks
 ```
 
-4. Make sure you have a grok API key:
+4. Make sure you have a [grok API key](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://console.x.ai/&ved=2ahUKEwjgtebliciQAxW_FDQIHQVPJRwQFnoECBkQAQ&usg=AOvVaw2IAlpnQPMW-m6Yxrrpztsu) (more models to be added later maybe):
 ```
 export XAI_API_KEY="xai-sOmEkEyHeRe..."
 ```
