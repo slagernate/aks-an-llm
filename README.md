@@ -48,7 +48,7 @@ aks --all --exclude *.pyc --query-file query.md
 ```
 
 `response.md` will look like:
-
+```
     ---
     Query Date: 2025-10-28 12:24:45
     Provider: xAI Grok API
@@ -79,3 +79,5 @@ The core functionality involves:
 ...
 
 Overall, this is a lightweight, developer-friendly tool for leveraging AI to analyze and discuss codebases directly from the command line.
+
+```
