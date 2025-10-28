@@ -44,7 +44,7 @@ Summarize this repo
 ```
 After running (optionally excluding some files):
 ```
-aks --all --exclude *.pyc --query-file query.md
+aks --all --exclude *.pyc aks.egg.info/ --query-file query.md
 ```
 
 `response.md` will look like:
