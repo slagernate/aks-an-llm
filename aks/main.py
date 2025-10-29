@@ -38,6 +38,15 @@ Environment:
     """)
     sys.exit(0)
 
+def pretty_number(n):
+   """Format large numbers in engineering style (e.g., 516930 -> '517k')."""
+   if n < 1000:
+       return str(n)
+   elif n < 1000000:
+       return f"{round(n / 1000)}k"
+   else:
+       return f"{round(n / 1000000)}M"  # In case of very large numbers
+
 def main():
     # Parse arguments
     parser = argparse.ArgumentParser(add_help=False) # Disable default help
@@ -47,6 +56,8 @@ def main():
     parser.add_argument('--query-history', '-H', nargs='?', type=int, const=100, default=None, help='Lines from history to use as query')
     parser.add_argument('--exclude', '-x', action='append', default=[], help='Glob pattern to exclude')
     parser.add_argument('--all', action='store_true', help='Include all files recursively')
+    parser.add_argument('--provider', choices=['xai', 'openai', 'ollama'], default='xai', help='LLM provider (default: xai)')
+    parser.add_argument('--model', default='grok-code-fast-1', help='LLM model name')
     parser.add_argument('-h', '--help', action='store_true', help='Show help')
     parser.add_argument('-v', '--version', action='store_true', help='Show version')
     args = parser.parse_args()
@@ -62,12 +73,11 @@ def main():
     # If --all is used and positional files are provided, treat them as additional excludes
     if args.all and args.files:
         args.exclude.extend(args.files)
-        print(f"Debug: Treating positional files as additional excludes when --all used: {args.files}")
     # Step 1: Determine files (specific/globbed or default globs)
     if args.all:
         all_files = glob.glob('**/*', recursive=True)
         all_files = [f for f in all_files if os.path.isfile(f)]
-        print(f"Debug: Using {len(all_files)} all files recursively (--all flag)")
+        print(f"Using {len(all_files)} all files recursively (--all flag)")
     elif args.files:
         all_files = []
         for pattern in args.files:
@@ -77,26 +87,26 @@ def main():
             expanded = glob.glob(pattern, recursive=True)
             all_files.extend(expanded)
         all_files = [f for f in all_files if os.path.isfile(f)]
-        print(f"Debug: Using {len(all_files)} expanded files from patterns: {args.files}")
+        print(f"Using {len(all_files)} expanded files from patterns: {args.files}")
     else:
         cpp_files = glob.glob('**/*.cpp', recursive=True)
         hpp_files = glob.glob('**/*.hpp', recursive=True) + glob.glob('**/*.h', recursive=True)
         py_files = glob.glob('**/*.py', recursive=True)
         all_files = cpp_files + hpp_files + py_files
-        print(f"Debug: Found {len(all_files)} files via default glob: {len(cpp_files)} .cpp, {len(hpp_files)} .h[pp], {len(py_files)} .py")
+        print(f"Found {len(all_files)} files via default glob: {len(cpp_files)} .cpp, {len(hpp_files)} .h[pp], {len(py_files)} .py")
     # Apply exclusions
     if args.exclude:
         initial_count = len(all_files)
         all_files = [f for f in all_files if not any(fnmatch.fnmatch(f, excl) for excl in args.exclude)]
         excluded_count = initial_count - len(all_files)
-        print(f"Debug: Excluded {excluded_count} files matching patterns: {args.exclude}")
+        print(f"Excluded {excluded_count} files matching patterns: {args.exclude}")
     if not all_files:
         print("No files found after exclusions.")
         sys.exit(1)
     # Step 1.5: Read and store file contents for token calculation
     file_contents = {}
     total_chars = 0
-    print(f"Debug: Files included ({len(all_files)} total):")
+    print(f"Files included ({len(all_files)} total):")
     for file_path in all_files:
         try:
             rel_path = os.path.relpath(file_path)
@@ -106,14 +116,13 @@ def main():
             chars = len(content)
             tokens = chars // 4
             total_chars += chars
-            print(f" - {rel_path}: {chars} chars (~{tokens} tokens)")
+            print(f" - {rel_path}: {pretty_number(chars)} chars (~{pretty_number(tokens)} tokens)")
         except Exception as e:
             print(f"Warning: Could not read {file_path}: {e}", file=sys.stderr)
     if not file_contents:
         print("No readable files found.")
         sys.exit(1)
     # Step 2: Concatenate contents into a temporary file
-    print("Debug: Concatenating file contents...")
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as tmp_file:
         for file_path, content in file_contents.items():
             rel_path = os.path.relpath(file_path)
@@ -124,7 +133,7 @@ def main():
     with open(temp_path, 'r', encoding='utf-8') as f:
         codebase_content = f.read()
     os.unlink(temp_path) # Clean up temp file
-    print(f"Debug: Codebase content length: {len(codebase_content)} chars")
+
     # Step 3: Get user query from command line, file, history, or input
     query_source = "interactive input"
     if args.query_history is not None:
@@ -156,13 +165,13 @@ def main():
     if not user_query:
         print("No query provided.")
         sys.exit(1)
-    print(f"Debug: User query source: {query_source}")
-    print(f"Debug: User query: '{user_query}'")
+    print(f"User query source: {query_source}")
+
     # Step 4: Estimate tokens and prompt if >2000 (rough approx: chars / 4)
     full_prompt = f'Here is the content of my codebase files:\n\n{codebase_content}\n\nQuery: {user_query}'
     num_chars = len(full_prompt)
     approx_tokens = num_chars // 4
-    print(f"Debug: Full prompt length: {num_chars} chars (~{approx_tokens} tokens)")
+    print(f"Full prompt length: {pretty_number(num_chars)} chars (~{pretty_number(approx_tokens)} tokens)")
     model_context_limit = 256000  # grok-code-fast-1 context window
     if approx_tokens > model_context_limit:
         print(f"Warning: Input prompt approx. {approx_tokens} tokens exceeds model context limit ({model_context_limit}). Proceed anyway? (y/n): ", end='')
@@ -176,12 +185,13 @@ def main():
         print("Error: Set XAI_API_KEY environment variable with your xAI API key.", file=sys.stderr)
         print("Visit https://x.ai/api for details.", file=sys.stderr)
         sys.exit(1)
-    print(f"Debug: API key loaded (length: {len(api_key)} chars)")
-    client = OpenAI(
-        api_key=api_key,
-        base_url='https://api.x.ai/v1'
-    )
-    print("Debug: OpenAI client initialized")
+
+
+    if args.provider == 'xai':
+        client = OpenAI(api_key=os.getenv('XAI_API_KEY'), base_url='https://api.x.ai/v1')
+    elif args.provider == 'openai':
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))  # Set this env var
+
     # Spinner function for waiting animation
     def spinner(stop_event, start_time):
         spinner_chars = '|/-\\'
@@ -195,15 +205,14 @@ def main():
         sys.stdout.write('\r' + ' ' * 50 + '\r') # Clear the spinner line
         sys.stdout.flush()
     # Step 6: Send to Grok API with spinner
-    print("Debug: Preparing API request...")
+    print("Preparing API request...")
     stop_event = threading.Event()
     start_time = time.time()
     spinner_thread = threading.Thread(target=spinner, args=(stop_event, start_time))
     spinner_thread.start()
     try:
-        print("Debug: Sending API call...")
         response = client.chat.completions.create(
-            model='grok-code-fast-1', # Switched to grok-code-fast-1
+            model=args.model,
             messages=[
                 {
                     'role': 'system',
@@ -217,7 +226,6 @@ def main():
             max_tokens=2000, # Adjust as needed
             temperature=0.7
         )
-        print("Debug: API response received")
         stop_event.set()
         spinner_thread.join()
         response_content = response.choices[0].message.content
@@ -228,14 +236,21 @@ Query Date: {current_date}
 Provider: xAI Grok API
 Model: grok-code-fast-1
 Query Source: {query_source}
-Query: {user_query}
 ---
+Query Start
+---
+{user_query}
+
+---
+Query End
+---
+
 """
         with open('response.md', 'a', encoding='utf-8') as f:
             f.write(metadata + response_content + "\n\n---\n\n")
-        print(f"\nResponse appended to response.md")
+        print(f"Response appended to response.md")
     except Exception as e:
-        print("Debug: API call failed")
+        print("API call failed")
         stop_event.set()
         spinner_thread.join()
         print(f"\nError calling API: {e}", file=sys.stderr)

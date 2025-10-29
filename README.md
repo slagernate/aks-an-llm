@@ -1,15 +1,12 @@
 
 # aks-an-llm
 
-ask an LLM with fine grain control of context shared.
+ask an LLM directly
 
 Some advantages of `aks`:
--Fine grain control of files shared (with visibility of tokens shared)
--Much better handling of huge files (context windows as of this writing are in the range of millions of tokens)
--`response.md` forces user to read suggestions of LLM instead of auto-applying patches.
--`response.md` cumulative history allows for fine grain control of chat history shared with LLM
--`response.md` also appends the last `query.md`, leaving a rich trail of debugging information directly in repo.
--`response.md` formatting in markdown allows for properly formatted history of queries and responses (no web interfaces vomitting chat bubbles).
+-Direct query of LLM --prevents model / client from running rampantly in the wrong direciton with your codebase
+-Fine grain control of files shared (with visibility of tokens shared) (eg don't share massive and/or sensitive files not pertinent to query)
+-`response.md` formatting in markdown allows for properly formatted history of queries (also in markdown) and responses (no web interfaces vomitting chat bubbles of unformatted plain text).
 
 ## Installation
 1. Install via pipx locall:
@@ -44,6 +41,10 @@ $ aks --all --query "in this prompt, you can ask a question to an LLM about all 
 ```
 The response (along with the query itself) will be appended to `response.md`. Subsequent queries can include `resopnse.md` to give the LLM prior context.
 
+### Model
+See help: `--provider` and `--model`
+
+### Query file
 Often it is useful to yank a bunch of lines from terminal (e.g. error output) to send to an LLM. You may put them in `query.md`:
 ```
 Summarize this repo
