@@ -19,24 +19,20 @@ def show_version():
 def show_help():
     print("""
 Ask LLM Tool - Share Codebase with LLM Tool
-
 Usage:
     aks [FILES...] [--query QUERY | --query-file FILE | --query-history [LINES]] [--exclude EXCLUDE...] [--all]
     aks -h, --help
     aks -v, --version
-
 Arguments:
-    FILES     Specific files or glob patterns to include (e.g., *.py, src/**/*.cpp, "*"; optional; defaults to all .cpp, .hpp, .py recursively)
-
+    FILES Specific files or glob patterns to include (e.g., *.py, src/**/*.cpp, "*"; optional; defaults to all .cpp, .hpp, .py recursively)
 Options:
-    --query, -q QUERY           Your query about the codebase (optional)
-    --query-file, -f FILE       Read query from file (mutually exclusive with --query and --query-history)
+    --query, -q QUERY Your query about the codebase (optional)
+    --query-file, -f FILE Read query from file (mutually exclusive with --query and --query-history)
     --query-history, -H [LINES] Read last LINES (default 100) from ~/.bash_history as query (mutually exclusive with --query and --query-file)
-    --exclude, -x EXCLUDE...    Glob patterns to exclude (e.g., --exclude poetry.lock tests/*; repeatable)
-    --all                       Include all files recursively (equivalent to "**/*"; overrides FILES)
-    -h, --help                  Show this help message
-    -v, --version               Show version info
-
+    --exclude, -x EXCLUDE... Glob patterns to exclude (e.g., --exclude poetry.lock tests/*; repeatable)
+    --all Include all files recursively (equivalent to "**/*"; overrides FILES)
+    -h, --help Show this help message
+    -v, --version Show version info
 Environment:
     Set XAI_API_KEY to your xAI API key[](https://console.x.ai/)
     """)
@@ -44,7 +40,7 @@ Environment:
 
 def main():
     # Parse arguments
-    parser = argparse.ArgumentParser(add_help=False)  # Disable default help
+    parser = argparse.ArgumentParser(add_help=False) # Disable default help
     parser.add_argument('files', nargs='*', help='Specific files or glob patterns to include')
     parser.add_argument('--query', '-q', help='Query string')
     parser.add_argument('--query-file', '-f', help='File containing query string')
@@ -54,23 +50,19 @@ def main():
     parser.add_argument('-h', '--help', action='store_true', help='Show help')
     parser.add_argument('-v', '--version', action='store_true', help='Show version')
     args = parser.parse_args()
-
     if args.version:
         show_version()
     if args.help:
         show_help()
-
     # Validate mutually exclusive query options
     query_methods = sum([bool(args.query), bool(args.query_file), bool(args.query_history)])
     if query_methods > 1:
         print("Error: --query, --query-file, and --query-history are mutually exclusive.", file=sys.stderr)
         sys.exit(1)
-
     # If --all is used and positional files are provided, treat them as additional excludes
     if args.all and args.files:
         args.exclude.extend(args.files)
         print(f"Debug: Treating positional files as additional excludes when --all used: {args.files}")
-
     # Step 1: Determine files (specific/globbed or default globs)
     if args.all:
         all_files = glob.glob('**/*', recursive=True)
@@ -92,18 +84,15 @@ def main():
         py_files = glob.glob('**/*.py', recursive=True)
         all_files = cpp_files + hpp_files + py_files
         print(f"Debug: Found {len(all_files)} files via default glob: {len(cpp_files)} .cpp, {len(hpp_files)} .h[pp], {len(py_files)} .py")
-
     # Apply exclusions
     if args.exclude:
         initial_count = len(all_files)
         all_files = [f for f in all_files if not any(fnmatch.fnmatch(f, excl) for excl in args.exclude)]
         excluded_count = initial_count - len(all_files)
         print(f"Debug: Excluded {excluded_count} files matching patterns: {args.exclude}")
-
     if not all_files:
         print("No files found after exclusions.")
         sys.exit(1)
-
     # Step 1.5: Read and store file contents for token calculation
     file_contents = {}
     total_chars = 0
@@ -117,14 +106,12 @@ def main():
             chars = len(content)
             tokens = chars // 4
             total_chars += chars
-            print(f"  - {rel_path}: {chars} chars (~{tokens} tokens)")
+            print(f" - {rel_path}: {chars} chars (~{tokens} tokens)")
         except Exception as e:
             print(f"Warning: Could not read {file_path}: {e}", file=sys.stderr)
-
     if not file_contents:
         print("No readable files found.")
         sys.exit(1)
-
     # Step 2: Concatenate contents into a temporary file
     print("Debug: Concatenating file contents...")
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as tmp_file:
@@ -133,13 +120,11 @@ def main():
             tmp_file.write(f"\n--- {rel_path} ---\n")
             tmp_file.write(content)
         temp_path = tmp_file.name
-
     # Read the temp file content
     with open(temp_path, 'r', encoding='utf-8') as f:
         codebase_content = f.read()
-    os.unlink(temp_path)  # Clean up temp file
+    os.unlink(temp_path) # Clean up temp file
     print(f"Debug: Codebase content length: {len(codebase_content)} chars")
-
     # Step 3: Get user query from command line, file, history, or input
     query_source = "interactive input"
     if args.query_history is not None:
@@ -173,18 +158,17 @@ def main():
         sys.exit(1)
     print(f"Debug: User query source: {query_source}")
     print(f"Debug: User query: '{user_query}'")
-
     # Step 4: Estimate tokens and prompt if >2000 (rough approx: chars / 4)
     full_prompt = f'Here is the content of my codebase files:\n\n{codebase_content}\n\nQuery: {user_query}'
     num_chars = len(full_prompt)
     approx_tokens = num_chars // 4
     print(f"Debug: Full prompt length: {num_chars} chars (~{approx_tokens} tokens)")
-    if approx_tokens > 2000:
-        print(f"Warning: Input prompt approx. {approx_tokens} tokens (chars/{num_chars} / 4). Proceed anyway? (y/n): ", end='')
+    model_context_limit = 256000  # grok-code-fast-1 context window
+    if approx_tokens > model_context_limit:
+        print(f"Warning: Input prompt approx. {approx_tokens} tokens exceeds model context limit ({model_context_limit}). Proceed anyway? (y/n): ", end='')
         if input().strip().lower() != 'y':
             print("Aborted.")
             sys.exit(1)
-
     # Step 5: Set up xAI Grok API client (requires XAI_API_KEY env var set to your xAI API key)
     # Get your API key from https://console.x.ai/
     api_key = os.getenv('XAI_API_KEY')
@@ -193,13 +177,11 @@ def main():
         print("Visit https://x.ai/api for details.", file=sys.stderr)
         sys.exit(1)
     print(f"Debug: API key loaded (length: {len(api_key)} chars)")
-
     client = OpenAI(
         api_key=api_key,
         base_url='https://api.x.ai/v1'
     )
     print("Debug: OpenAI client initialized")
-
     # Spinner function for waiting animation
     def spinner(stop_event, start_time):
         spinner_chars = '|/-\\'
@@ -210,20 +192,18 @@ def main():
             sys.stdout.flush()
             i += 1
             time.sleep(0.1)
-        sys.stdout.write('\r' + ' ' * 50 + '\r')  # Clear the spinner line
+        sys.stdout.write('\r' + ' ' * 50 + '\r') # Clear the spinner line
         sys.stdout.flush()
-
     # Step 6: Send to Grok API with spinner
     print("Debug: Preparing API request...")
     stop_event = threading.Event()
     start_time = time.time()
     spinner_thread = threading.Thread(target=spinner, args=(stop_event, start_time))
     spinner_thread.start()
-
     try:
         print("Debug: Sending API call...")
         response = client.chat.completions.create(
-            model='grok-code-fast-1',  # Switched to grok-code-fast-1
+            model='grok-code-fast-1', # Switched to grok-code-fast-1
             messages=[
                 {
                     'role': 'system',
@@ -234,7 +214,7 @@ def main():
                     'content': full_prompt
                 }
             ],
-            max_tokens=2000,  # Adjust as needed
+            max_tokens=2000, # Adjust as needed
             temperature=0.7
         )
         print("Debug: API response received")
@@ -243,15 +223,14 @@ def main():
         response_content = response.choices[0].message.content
         current_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         metadata = f"""
-    ---
-    Query Date: {current_date}
-    Provider: xAI Grok API
-    Model: grok-code-fast-1
-    Query Source: {query_source}
-    Query: {user_query}
-    ---
-
-    """
+---
+Query Date: {current_date}
+Provider: xAI Grok API
+Model: grok-code-fast-1
+Query Source: {query_source}
+Query: {user_query}
+---
+"""
         with open('response.md', 'a', encoding='utf-8') as f:
             f.write(metadata + response_content + "\n\n---\n\n")
         print(f"\nResponse appended to response.md")
@@ -263,7 +242,6 @@ def main():
         print("Ensure you have the 'openai' package: pip install openai", file=sys.stderr)
         print("For more API details: https://x.ai/api", file=sys.stderr)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

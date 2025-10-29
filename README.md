@@ -1,9 +1,15 @@
 
 # aks-an-llm
 
-Query / aks \[sic\] an LLM with fine grain control over context / files in your repo / directory.
+ask an LLM with fine grain control of context shared.
 
-Primarily used with neovim / vim; `aks` is much faster / better when dealing with thousands of lines of code (the web interface is just not cut out for this).
+Some advantages of `aks`:
+-Fine grain control of files shared (with visibility of tokens shared)
+-Much better handling of huge files (context windows as of this writing are in the range of millions of tokens)
+-`response.md` forces user to read suggestions of LLM instead of auto-applying patches.
+-`response.md` cumulative history allows for fine grain control of chat history shared with LLM
+-`response.md` also appends the last `query.md`, leaving a rich trail of debugging information directly in repo.
+-`response.md` formatting in markdown allows for properly formatted history of queries and responses (no web interfaces vomitting chat bubbles).
 
 ## Installation
 1. Install via pipx locall:
