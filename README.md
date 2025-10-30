@@ -4,9 +4,9 @@
 ask an LLM directly
 
 Some advantages of `aks`:
--Direct query of LLM --prevents model / client from running rampantly in the wrong direciton with your codebase
--Fine grain control of files shared (with visibility of tokens shared) (eg don't share massive and/or sensitive files not pertinent to query)
--`response.md` formatting in markdown allows for properly formatted history of queries (also in markdown) and responses (no web interfaces vomitting chat bubbles of unformatted plain text).
+- Direct query of LLM --prevents model / client from running rampantly in the wrong direciton with your codebase
+- Fine grain control of files shared (with visibility of tokens shared) (eg don't share massive and/or sensitive files not pertinent to query)
+- `response.md` formatting in markdown allows for properly formatted history of queries (also in markdown) and responses (no web interfaces vomitting chat bubbles of unformatted plain text).
 
 ## Installation
 1. Install via pipx locall:
