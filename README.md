@@ -6,15 +6,15 @@ ask an LLM directly
 Some advantages of `aks`:
 - Direct query of LLM --prevents model / client from running rampantly in the wrong direction with your codebase
 - Fine grain control of files shared (with visibility of tokens shared) (eg don't share massive and/or sensitive files not pertinent to query)
-- `response.md` formatting in markdown allows for properly formatted history of queries (also in markdown) and responses (no web interfaces vomitting chat bubbles of unformatted plain text).
+- `response.md` formatting in markdown allows for properly formatted history of answers as well as queries (also in markdown) and responses (no web interfaces vomitting chat bubbles of unformatted plain text).
 
 ## Installation
-1. Install via pipx locall:
+1. Install via pipx locally:
 ```
 cd aks-an-llm
 pipx install -e .
 ```
-this will install: `~/.local/bin/aks`
+this will install `aks` symlinnk to: `~/.local/bin/`
 
 2. Add to PATH (if not already; add to ~/.bashrc or ~/.profile to retain updated PATH):
 ```
@@ -23,17 +23,15 @@ export PATH="$HOME/.local/bin:$PATH"
 
 3. Test:
 ```
-which aks
-```
-should print
-```
-/home/$YOUR_USER_NAME/.local/bin/aks
+aks --version
 ```
 
-4. Make sure you have a [grok API key](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://console.x.ai/&ved=2ahUKEwjgtebliciQAxW_FDQIHQVPJRwQFnoECBkQAQ&usg=AOvVaw2IAlpnQPMW-m6Yxrrpztsu) (more models to be added later maybe):
+4. Make sure you have a [grok API key](https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://console.x.ai/&ved=2ahUKEwjgtebliciQAxW_FDQIHQVPJRwQFnoECBkQAQ&usg=AOvVaw2IAlpnQPMW-m6Yxrrpztsu):
 ```
 export XAI_API_KEY="xai-sOmEkEyHeRe..."
 ```
+
+or an openai key.
 
 ## Usage
 ```
