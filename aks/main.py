@@ -53,7 +53,6 @@ def main():
     parser.add_argument('files', nargs='*', help='Specific files or glob patterns to include')
     parser.add_argument('--query', '-q', help='Query string')
     parser.add_argument('--query-file', '-f', help='File containing query string')
-    parser.add_argument('--query-history', '-H', nargs='?', type=int, const=100, default=None, help='Lines from history to use as query')
     parser.add_argument('--exclude', '-x', action='append', default=[], help='Glob pattern to exclude')
     parser.add_argument('--all', action='store_true', help='Include all files recursively')
     parser.add_argument('--provider', choices=['xai', 'openai', 'ollama'], default='xai', help='LLM provider (default: xai)')
@@ -65,14 +64,16 @@ def main():
         show_version()
     if args.help:
         show_help()
+
     # Validate mutually exclusive query options
-    query_methods = sum([bool(args.query), bool(args.query_file), bool(args.query_history)])
+    query_methods = sum([bool(args.query), bool(args.query_file)])
     if query_methods > 1:
-        print("Error: --query, --query-file, and --query-history are mutually exclusive.", file=sys.stderr)
+        print("Error: --query, --query-file, and are mutually exclusive.", file=sys.stderr)
         sys.exit(1)
     # If --all is used and positional files are provided, treat them as additional excludes
     if args.all and args.files:
         args.exclude.extend(args.files)
+
     # Step 1: Determine files (specific/globbed or default globs)
     if args.all:
         all_files = glob.glob('**/*', recursive=True)
@@ -103,6 +104,7 @@ def main():
     if not all_files:
         print("No files found after exclusions.")
         sys.exit(1)
+
     # Step 1.5: Read and store file contents for token calculation
     file_contents = {}
     total_chars = 0
@@ -136,19 +138,7 @@ def main():
 
     # Step 3: Get user query from command line, file, history, or input
     query_source = "interactive input"
-    if args.query_history is not None:
-        history_file = os.path.expanduser('~/.bash_history')
-        try:
-            with open(history_file, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-            num_lines = args.query_history
-            history_query = ''.join(lines[-num_lines:]).strip()
-            user_query = history_query if history_query else input("Enter your query about the codebase: ").strip()
-            query_source = f"history (last {num_lines} lines from {history_file})"
-        except Exception as e:
-            print(f"Error reading history file {history_file}: {e}", file=sys.stderr)
-            sys.exit(1)
-    elif args.query_file:
+    if args.query_file is not None:
         try:
             with open(args.query_file, 'r', encoding='utf-8') as f:
                 user_query = f.read().strip()
@@ -204,12 +194,14 @@ def main():
             time.sleep(0.1)
         sys.stdout.write('\r' + ' ' * 50 + '\r') # Clear the spinner line
         sys.stdout.flush()
+
     # Step 6: Send to Grok API with spinner
     print("Preparing API request...")
     stop_event = threading.Event()
     start_time = time.time()
     spinner_thread = threading.Thread(target=spinner, args=(stop_event, start_time))
     spinner_thread.start()
+
     try:
         response = client.chat.completions.create(
             model=args.model,
@@ -224,7 +216,8 @@ def main():
                 }
             ],
             max_tokens=2000, # Adjust as needed
-            temperature=0.7
+            temperature=0.7,
+            stream=False
         )
         stop_event.set()
         spinner_thread.join()
